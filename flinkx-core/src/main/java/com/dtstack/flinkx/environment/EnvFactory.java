@@ -48,18 +48,19 @@ public class EnvFactory {
      */
     public static StreamExecutionEnvironment createStreamExecutionEnvironment(Options options) {
         Configuration flinkConf = new Configuration();
+        Configuration cfg = Configuration.fromMap(PropertiesUtil.confToMap(options.getConfProp()));
         if (StringUtils.isNotEmpty(options.getFlinkConfDir())) {
             flinkConf = GlobalConfiguration.loadConfiguration(options.getFlinkConfDir());
         }
         StreamExecutionEnvironment env;
         if (StringUtils.equalsIgnoreCase(ClusterMode.local.name(), options.getMode())) {
+            flinkConf.addAll(cfg);
             env = new MyLocalStreamEnvironment(flinkConf);
         } else {
-            Configuration cfg =
-                    Configuration.fromMap(PropertiesUtil.confToMap(options.getConfProp()));
             env = StreamExecutionEnvironment.getExecutionEnvironment(cfg);
         }
         env.getConfig().disableClosureCleaner();
+        env.getConfig().setGlobalJobParameters(cfg);
         return env;
     }
 
@@ -71,6 +72,7 @@ public class EnvFactory {
         configuration.setBoolean(
                 TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key(), true);
         setTableConfig(tEnv, properties, jobName);
+        setTableConfigForPython(tEnv, properties);
         return tEnv;
     }
 
@@ -86,5 +88,16 @@ public class EnvFactory {
                                         e.getValue().toString().toLowerCase()));
 
         configuration.setString(PipelineOptions.NAME, jobName);
+    }
+
+    private static void setTableConfigForPython(
+            StreamTableEnvironment tEnv, Properties properties) {
+        Configuration configuration = tEnv.getConfig().getConfiguration();
+        properties.entrySet().stream()
+                .filter(e -> e.getKey().toString().toLowerCase().startsWith("python."))
+                .forEach(
+                        e ->
+                                configuration.setString(
+                                        e.getKey().toString(), e.getValue().toString()));
     }
 }

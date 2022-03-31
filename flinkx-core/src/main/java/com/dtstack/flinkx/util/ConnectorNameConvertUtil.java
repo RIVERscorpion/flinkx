@@ -29,13 +29,17 @@ import java.util.Map;
  */
 public class ConnectorNameConvertUtil {
 
-    // tuple f0 package name,f1 class name
+    // tuple f0 package name && directory name,f1 class name
     private static Map<String, Tuple2<String, String>> connectorNameMap = new HashMap<>();
 
     static {
         connectorNameMap.put("es", new Tuple2<>("elasticsearch6", "elasticsearch6"));
         connectorNameMap.put("hbase", new Tuple2<>("hbase14", "HBase14"));
         connectorNameMap.put("tidb", new Tuple2<>("mysql", "mysql"));
+        connectorNameMap.put("restapi", new Tuple2<>("http", "http"));
+        connectorNameMap.put("adbpostgresql", new Tuple2<>("postgresql", "postgresql"));
+        connectorNameMap.put("dorisbatch", new Tuple2<>("doris", "doris"));
+        connectorNameMap.put("gbase", new Tuple2<>("gBase", "gBase"));
     }
 
     public static String convertClassPrefix(String originName) {

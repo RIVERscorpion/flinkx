@@ -39,9 +39,8 @@ import javax.annotation.Nullable;
  */
 public class RowSerializationSchema extends DynamicKafkaSerializationSchema {
 
-    protected final Logger LOG = LoggerFactory.getLogger(getClass());
-
     private static final long serialVersionUID = 1L;
+    protected final Logger LOG = LoggerFactory.getLogger(getClass());
     /** kafka key converter */
     private final AbstractRowConverter<String, Object, byte[], String> keyConverter;
     /** kafka value converter */
@@ -89,8 +88,7 @@ public class RowSerializationSchema extends DynamicKafkaSerializationSchema {
                     null,
                     valueSerialized);
         } catch (Exception e) {
-            // todo kafka比较特殊，这里直接记录脏数据。
-            LOG.error(e.getMessage());
+            dirtyManager.collect(element, e, null);
         }
         return null;
     }

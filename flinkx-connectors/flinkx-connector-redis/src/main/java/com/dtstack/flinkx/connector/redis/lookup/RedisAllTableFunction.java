@@ -72,7 +72,9 @@ public class RedisAllTableFunction extends AbstractAllTableFunction {
         keyPattern
                 .append("_")
                 .append(Arrays.stream(keys).map(String::valueOf).collect(Collectors.joining("_")));
-        List<Map<String, Object>> cacheList = cacheRef.get().get(keyPattern.toString());
+        List<Map<String, Object>> cacheList =
+                ((Map<String, List<Map<String, Object>>>) cacheRef.get())
+                        .get(keyPattern.toString());
 
         // 有数据才往下发，(左/内)连接flink会做相应的处理
         if (!CollectionUtils.isEmpty(cacheList)) {
@@ -84,10 +86,10 @@ public class RedisAllTableFunction extends AbstractAllTableFunction {
     protected void loadData(Object cacheRef) {
         Map<String, List<Map<String, Object>>> tmpCache =
                 (Map<String, List<Map<String, Object>>>) cacheRef;
-
-        redisSyncClient = new RedisSyncClient(redisConf);
+        if (redisSyncClient == null) {
+            redisSyncClient = new RedisSyncClient(redisConf);
+        }
         JedisCommands jedis = redisSyncClient.getJedis();
-
         StringBuilder keyPattern = new StringBuilder(redisConf.getTableName());
         for (int i = 0; i < keyNames.length; i++) {
             keyPattern.append("_").append("*");
@@ -118,7 +120,7 @@ public class RedisAllTableFunction extends AbstractAllTableFunction {
         } catch (Exception e) {
             LOG.error("", e);
         } finally {
-            redisSyncClient.close(jedis);
+            redisSyncClient.closeJedis(jedis);
         }
     }
 

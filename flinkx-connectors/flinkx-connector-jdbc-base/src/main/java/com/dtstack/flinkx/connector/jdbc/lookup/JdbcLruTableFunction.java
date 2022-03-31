@@ -22,7 +22,7 @@ import com.dtstack.flinkx.connector.jdbc.conf.JdbcConf;
 import com.dtstack.flinkx.connector.jdbc.conf.JdbcLookupConf;
 import com.dtstack.flinkx.connector.jdbc.dialect.JdbcDialect;
 import com.dtstack.flinkx.enums.ECacheContentType;
-import com.dtstack.flinkx.factory.DTThreadFactory;
+import com.dtstack.flinkx.factory.FlinkxThreadFactory;
 import com.dtstack.flinkx.lookup.AbstractLruTableFunction;
 import com.dtstack.flinkx.lookup.cache.CacheMissVal;
 import com.dtstack.flinkx.lookup.cache.CacheObj;
@@ -46,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -82,12 +83,6 @@ public class JdbcLruTableFunction extends AbstractLruTableFunction {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcLruTableFunction.class);
     /** when network is unhealthy block query */
     private final AtomicBoolean connectionStatus = new AtomicBoolean(true);
-    /** query data thread */
-    private transient ThreadPoolExecutor executor;
-    /** vertx */
-    private transient Vertx vertx;
-    /** rdb client */
-    private transient SQLClient rdbSqlClient;
     /** select sql */
     private final String query;
     /** jdbc Dialect */
@@ -96,6 +91,12 @@ public class JdbcLruTableFunction extends AbstractLruTableFunction {
     private final JdbcConf jdbcConf;
     /** vertx async pool size */
     protected int asyncPoolSize;
+    /** query data thread */
+    private transient ThreadPoolExecutor executor;
+    /** vertx */
+    private transient Vertx vertx;
+    /** rdb client */
+    private transient SQLClient rdbSqlClient;
 
     public JdbcLruTableFunction(
             JdbcConf jdbcConf,
@@ -141,7 +142,7 @@ public class JdbcLruTableFunction extends AbstractLruTableFunction {
                         0,
                         TimeUnit.MILLISECONDS,
                         new LinkedBlockingQueue<>(MAX_TASK_QUEUE_SIZE.defaultValue()),
-                        new DTThreadFactory("rdbAsyncExec"),
+                        new FlinkxThreadFactory("rdbAsyncExec"),
                         new ThreadPoolExecutor.CallerRunsPolicy());
         LOG.info("async dim table JdbcOptions info: {} ", jdbcConf.toString());
     }
@@ -312,11 +313,13 @@ public class JdbcLruTableFunction extends AbstractLruTableFunction {
                 rs -> {
                     try {
                         if (rs.failed()) {
-                            LOG.error(
+                            String msg =
                                     String.format(
                                             "\nget data with sql [%s],data [%s] failed! \ncause: [%s]",
-                                            query, Arrays.toString(keys), rs.cause().getMessage()));
-                            throw new RuntimeException(rs.cause().getMessage(), rs.cause());
+                                            query, Arrays.toString(keys), rs.cause().getMessage());
+                            LOG.error(msg);
+                            future.completeExceptionally(new SQLException(msg));
+                            return;
                         }
 
                         List<JsonArray> cacheContent = new ArrayList<>();

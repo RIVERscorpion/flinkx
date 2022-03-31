@@ -17,12 +17,20 @@
  */
 package com.dtstack.flinkx;
 
+import com.dtstack.flinkx.cdc.CdcConf;
+import com.dtstack.flinkx.cdc.RestorationFlatMap;
+import com.dtstack.flinkx.cdc.monitor.fetch.FetcherBase;
+import com.dtstack.flinkx.cdc.monitor.store.StoreBase;
 import com.dtstack.flinkx.conf.SpeedConf;
 import com.dtstack.flinkx.conf.SyncConf;
 import com.dtstack.flinkx.constants.ConstantValue;
+import com.dtstack.flinkx.dirty.DirtyConf;
+import com.dtstack.flinkx.dirty.utils.DirtyConfUtil;
 import com.dtstack.flinkx.enums.EJobType;
 import com.dtstack.flinkx.environment.EnvFactory;
 import com.dtstack.flinkx.environment.MyLocalStreamEnvironment;
+import com.dtstack.flinkx.mapping.NameMappingConf;
+import com.dtstack.flinkx.mapping.NameMappingFlatMap;
 import com.dtstack.flinkx.options.OptionParser;
 import com.dtstack.flinkx.options.Options;
 import com.dtstack.flinkx.sink.SinkFactory;
@@ -40,6 +48,7 @@ import com.dtstack.flinkx.util.TableUtil;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -56,13 +65,14 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.types.DataType;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -85,12 +95,14 @@ public class Main {
         LOG.info("-------------------------------------------");
 
         Options options = new OptionParser(args).getOptions();
-        String job = URLDecoder.decode(options.getJob(), Charsets.UTF_8.name());
+        String job = URLDecoder.decode(options.getJob(), StandardCharsets.UTF_8.name());
         Properties confProperties = PropertiesUtil.parseConf(options.getConfProp());
         StreamExecutionEnvironment env = EnvFactory.createStreamExecutionEnvironment(options);
         StreamTableEnvironment tEnv =
                 EnvFactory.createStreamTableEnvironment(env, confProperties, options.getJobName());
-
+        LOG.info(
+                "Register to table configuration:{}",
+                tEnv.getConfig().getConfiguration().toString());
         switch (EJobType.getByName(options.getJobType())) {
             case SQL:
                 exeSqlJob(env, tEnv, job, options);
@@ -162,8 +174,23 @@ public class Main {
         SourceFactory sourceFactory = DataSyncFactoryUtil.discoverSource(config, env);
         DataStream<RowData> dataStreamSource = sourceFactory.createSource();
 
+        if (!config.getCdcConf().isSkipDDL()) {
+            CdcConf cdcConf = config.getCdcConf();
+            Pair<FetcherBase, StoreBase> monitorPair =
+                    DataSyncFactoryUtil.discoverMonitor(cdcConf.getMonitor(), config);
+            dataStreamSource =
+                    dataStreamSource.flatMap(
+                            new RestorationFlatMap(
+                                    monitorPair.getLeft(), monitorPair.getRight(), cdcConf));
+        }
+
+        if (config.getNameMappingConf() != null) {
+            NameMappingConf mappingConf = config.getNameMappingConf();
+            dataStreamSource = dataStreamSource.flatMap(new NameMappingFlatMap(mappingConf));
+        }
+
         SpeedConf speed = config.getSpeed();
-        if (speed.getReaderChannel() > 0) {
+        if (speed.getReaderChannel() > 1) {
             dataStreamSource =
                     ((DataStreamSource<RowData>) dataStreamSource)
                             .setParallelism(speed.getReaderChannel());
@@ -246,6 +273,14 @@ public class Main {
                 config.setPluginRoot(options.getFlinkxDistDir());
             }
 
+            Properties confProperties = PropertiesUtil.parseConf(options.getConfProp());
+
+            String savePointPath =
+                    confProperties.getProperty(SavepointConfigOptions.SAVEPOINT_PATH.key());
+            if (StringUtils.isNotBlank(savePointPath)) {
+                config.setSavePointPath(savePointPath);
+            }
+
             if (StringUtils.isNotBlank(options.getRemoteFlinkxDistDir())) {
                 config.setRemotePluginPath(options.getRemoteFlinkxDistDir());
             }
@@ -264,8 +299,9 @@ public class Main {
      */
     private static void configStreamExecutionEnvironment(
             StreamExecutionEnvironment env, Options options, SyncConf config) {
+
         if (config != null) {
-            PluginUtil.registerPluginUrlToCachedFile(config, env);
+            PluginUtil.registerPluginUrlToCachedFile(options, config, env);
             env.setParallelism(config.getSpeed().getChannel());
         } else {
             Preconditions.checkArgument(
@@ -279,6 +315,14 @@ public class Main {
             factoryHelper.setRemotePluginPath(options.getRemoteFlinkxDistDir());
             factoryHelper.setPluginLoadMode(options.getPluginLoadMode());
             factoryHelper.setEnv(env);
+            factoryHelper.setExecutionMode(options.getMode());
+
+            DirtyConf dirtyConf = DirtyConfUtil.parse(options);
+            factoryHelper.registerCachedFile(
+                    dirtyConf.getType(),
+                    Thread.currentThread().getContextClassLoader(),
+                    ConstantValue.DIRTY_DATA_DIR_NAME);
+            // TODO sql 支持restore.
 
             FactoryUtil.setFactoryUtilHelp(factoryHelper);
             TableFactoryService.setFactoryUtilHelp(factoryHelper);

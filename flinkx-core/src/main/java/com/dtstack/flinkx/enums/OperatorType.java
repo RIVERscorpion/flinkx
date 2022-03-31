@@ -25,5 +25,12 @@ package com.dtstack.flinkx.enums;
 public enum OperatorType {
     source,
     sink,
-    metric
+    metric,
+    /** dirty plugins. */
+    dirty,
+    /** cdc store plugins */
+    store,
+    /** cdc fetcher plugins */
+    fetcher,
+    ;
 }

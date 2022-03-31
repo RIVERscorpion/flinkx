@@ -19,7 +19,7 @@
 package com.dtstack.flinkx.lookup;
 
 import com.dtstack.flinkx.converter.AbstractRowConverter;
-import com.dtstack.flinkx.factory.DTThreadFactory;
+import com.dtstack.flinkx.factory.FlinkxThreadFactory;
 import com.dtstack.flinkx.lookup.conf.LookupConf;
 
 import org.apache.flink.table.data.GenericRowData;
@@ -55,8 +55,7 @@ public abstract class AbstractAllTableFunction extends TableFunction<RowData> {
     /** 和维表join字段的名称 */
     protected final String[] keyNames;
     /** 缓存 */
-    protected AtomicReference<Map<String, List<Map<String, Object>>>> cacheRef =
-            new AtomicReference<>();
+    protected AtomicReference<Object> cacheRef = new AtomicReference<>();
     /** 定时加载 */
     private ScheduledExecutorService es;
     /** 维表配置 */
@@ -114,7 +113,7 @@ public abstract class AbstractAllTableFunction extends TableFunction<RowData> {
         LOG.info("----- all cacheRef init end-----");
 
         // start reload cache thread
-        es = new ScheduledThreadPoolExecutor(1, new DTThreadFactory("cache-all-reload"));
+        es = new ScheduledThreadPoolExecutor(1, new FlinkxThreadFactory("cache-all-reload"));
         es.scheduleAtFixedRate(
                 this::reloadCache,
                 lookupConf.getPeriod(),
@@ -148,7 +147,8 @@ public abstract class AbstractAllTableFunction extends TableFunction<RowData> {
      */
     public void eval(Object... keys) {
         String cacheKey = Arrays.stream(keys).map(String::valueOf).collect(Collectors.joining("_"));
-        List<Map<String, Object>> cacheList = cacheRef.get().get(cacheKey);
+        List<Map<String, Object>> cacheList =
+                ((Map<String, List<Map<String, Object>>>) (cacheRef.get())).get(cacheKey);
         // 有数据才往下发，(左/内)连接flink会做相应的处理
         if (!CollectionUtils.isEmpty(cacheList)) {
             cacheList.forEach(one -> collect(fillData(one)));

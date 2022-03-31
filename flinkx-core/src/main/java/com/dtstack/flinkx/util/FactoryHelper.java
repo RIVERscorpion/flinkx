@@ -18,23 +18,21 @@
 package com.dtstack.flinkx.util;
 
 import com.dtstack.flinkx.constants.ConstantValue;
-import com.dtstack.flinkx.throwable.FlinkxRuntimeException;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.factories.TableFactoryService;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Date: 2021/08/05 Company: www.dtstack.com
@@ -62,6 +60,8 @@ public class FactoryHelper {
     protected List<URL> classPathSet = new ArrayList<>();
     /** shipfile需要的jar的classPath index */
     protected int classFileNameIndex = 0;
+    /** 任务执行模式 */
+    protected String executionMode;
 
     public FactoryHelper() {}
 
@@ -70,47 +70,21 @@ public class FactoryHelper {
      *
      * @param factoryIdentifier
      * @param classLoader
-     * @param ignore
+     * @param dirName
      */
     public void registerCachedFile(
-            String factoryIdentifier, ClassLoader classLoader, boolean ignore) {
-        String pluginPath =
-                StringUtils.equalsIgnoreCase(
-                                this.pluginLoadMode, ConstantValue.CLASS_PATH_PLUGIN_LOAD_MODE)
-                        ? this.remotePluginPath
-                        : this.localPluginPath;
-        String pluginJarPath =
-                pluginPath
-                        + File.separatorChar
-                        + ConstantValue.CONNECTOR_DIR_NAME
-                        + File.separatorChar
-                        + factoryIdentifier;
+            String factoryIdentifier, ClassLoader classLoader, String dirName) {
+        Set<URL> urlSet =
+                PluginUtil.getJarFileDirPath(
+                        factoryIdentifier, this.localPluginPath, this.remotePluginPath, dirName);
         try {
-            File pluginJarPathFile = new File(pluginJarPath);
-            // 路径不存在或者不为文件夹
-            if (!pluginJarPathFile.exists() || !pluginJarPathFile.isDirectory()) {
-                if (ignore) {
-                    return;
-                } else {
-                    throw new FlinkxRuntimeException(
-                            "plugin path:" + pluginJarPath + " is not exist.");
-                }
-            }
-
-            File[] files =
-                    pluginJarPathFile.listFiles(
-                            tmpFile -> tmpFile.isFile() && tmpFile.getName().endsWith(".jar"));
-            if (files == null || files.length == 0) {
-                throw new FlinkxRuntimeException("plugin path:" + pluginJarPath + " is null.");
-            }
-
             Method add = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
             add.setAccessible(true);
-
-            for (File file : files) {
-                URL jarUrl = file.toURI().toURL();
+            List<String> urlList = new ArrayList<>(urlSet.size());
+            for (URL jarUrl : urlSet) {
                 add.invoke(classLoader, jarUrl);
                 if (!this.classPathSet.contains(jarUrl)) {
+                    urlList.add(jarUrl.toString());
                     this.classPathSet.add(jarUrl);
                     String classFileName =
                             String.format(
@@ -119,8 +93,9 @@ public class FactoryHelper {
                     this.classFileNameIndex++;
                 }
             }
+            PluginUtil.setPipelineOptionsToEnvConfig(this.env, urlList, executionMode);
         } catch (Exception e) {
-            LOG.warn("can't add jar in {} to cachedFile, e = {}", pluginJarPath, e.getMessage());
+            LOG.warn("can't add jar in {} to cachedFile, e = {}", urlSet, e.getMessage());
         }
     }
 
@@ -138,5 +113,13 @@ public class FactoryHelper {
 
     public void setEnv(StreamExecutionEnvironment env) {
         this.env = env;
+    }
+
+    public String getExecutionMode() {
+        return executionMode;
+    }
+
+    public void setExecutionMode(String executionMode) {
+        this.executionMode = executionMode;
     }
 }

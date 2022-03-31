@@ -16,7 +16,7 @@
 package com.dtstack.flinkx.connector.hbase14.sink;
 
 import com.dtstack.flinkx.conf.SyncConf;
-import com.dtstack.flinkx.connector.hbase14.HBaseColumnConverter;
+import com.dtstack.flinkx.connector.hbase.HBaseColumnConverter;
 import com.dtstack.flinkx.connector.hbase14.conf.HBaseConf;
 import com.dtstack.flinkx.connector.hbase14.converter.HBaseRawTypeConverter;
 import com.dtstack.flinkx.converter.AbstractRowConverter;
@@ -39,7 +39,6 @@ public class HBase14SinkFactory extends SinkFactory {
                         GsonUtil.GSON.toJson(config.getWriter().getParameter()), HBaseConf.class);
         super.initFlinkxCommonConf(hbaseConf);
         hbaseConf.setColumnMetaInfos(syncConf.getWriter().getFieldList());
-        hbaseConf.setTableName(syncConf.getWriter().getTable().getTableName());
     }
 
     @Override
@@ -51,7 +50,7 @@ public class HBase14SinkFactory extends SinkFactory {
         builder.setHbaseConfig(hbaseConf.getHbaseConfig());
         builder.setNullMode(hbaseConf.getNullMode());
         builder.setRowkeyExpress(hbaseConf.getRowkeyExpress());
-        builder.setTableName(hbaseConf.getTableName());
+        builder.setTableName(hbaseConf.getTable());
         builder.setVersionColumnIndex(hbaseConf.getVersionColumnIndex());
         builder.setVersionColumnValues(hbaseConf.getVersionColumnValue());
         builder.setWalFlag(hbaseConf.getWalFlag());

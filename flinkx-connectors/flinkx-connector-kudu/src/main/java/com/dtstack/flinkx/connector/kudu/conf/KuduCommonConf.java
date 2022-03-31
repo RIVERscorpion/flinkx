@@ -23,16 +23,22 @@ import com.dtstack.flinkx.security.KerberosConfig;
 
 import org.apache.flink.configuration.ReadableConfig;
 
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.ADMIN_OPERATION_TIMEOUT;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.MASTER_ADDRESS;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.OPERATION_TIMEOUT;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.QUERY_TIMEOUT;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.SCAN_PARALLELISM;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.TABLE_NAME;
-import static com.dtstack.flinkx.connector.kudu.options.KuduOptions.WORKER_COUNT;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.collections.MapUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.ADMIN_OPERATION_TIMEOUT;
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.MASTER_ADDRESS;
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.OPERATION_TIMEOUT;
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.QUERY_TIMEOUT;
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.TABLE_NAME;
+import static com.dtstack.flinkx.connector.kudu.table.KuduOptions.WORKER_COUNT;
 import static com.dtstack.flinkx.security.KerberosOptions.KEYTAB;
 import static com.dtstack.flinkx.security.KerberosOptions.KRB5_CONF;
 import static com.dtstack.flinkx.security.KerberosOptions.PRINCIPAL;
+import static com.dtstack.flinkx.source.options.SourceOptions.SCAN_PARALLELISM;
 
 /**
  * @author tiezhu
@@ -48,6 +54,9 @@ public class KuduCommonConf extends FlinkxCommonConf {
 
     /** kudu kerberos */
     protected KerberosConfig kerberos;
+
+    /** hadoop高可用相关配置 * */
+    private Map<String, Object> hadoopConfig = new HashMap<>(16);
 
     /** worker线程数，默认为cpu*2 */
     protected Integer workerCount = 2;
@@ -81,7 +90,13 @@ public class KuduCommonConf extends FlinkxCommonConf {
         return masters;
     }
 
+    @JsonProperty(value = "masters")
     public void setMasters(String masters) {
+        this.masters = masters;
+    }
+
+    @JsonProperty(value = "masterAddresses")
+    public void setMasterAddresses(String masters) {
         this.masters = masters;
     }
 
@@ -118,6 +133,14 @@ public class KuduCommonConf extends FlinkxCommonConf {
         this.kerberos = kerberos;
     }
 
+    public Map<String, Object> getHadoopConfig() {
+        return hadoopConfig;
+    }
+
+    public void setHadoopConfig(Map<String, Object> hadoopConfig) {
+        this.hadoopConfig = hadoopConfig;
+    }
+
     public static KuduCommonConf from(ReadableConfig readableConfig, KuduCommonConf conf) {
         // common
         conf.setMasters(readableConfig.get(MASTER_ADDRESS));
@@ -139,6 +162,16 @@ public class KuduCommonConf extends FlinkxCommonConf {
         conf.setKerberos(kerberosConfig);
 
         return conf;
+    }
+
+    public KerberosConfig conventHadoopConfig() {
+
+        String principal = MapUtils.getString(hadoopConfig, "principal");
+        String keytab = MapUtils.getString(hadoopConfig, "principalFile");
+        String krb5Conf = MapUtils.getString(hadoopConfig, "java.security.krb5.conf");
+        KerberosConfig kerberosConfig = new KerberosConfig(principal, keytab, krb5Conf);
+
+        return kerberosConfig;
     }
 
     @Override

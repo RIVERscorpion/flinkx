@@ -24,6 +24,7 @@ import com.dtstack.flinkx.connector.kafka.conf.KafkaConf;
 import com.dtstack.flinkx.connector.kafka.converter.KafkaColumnConverter;
 import com.dtstack.flinkx.connector.kafka.enums.StartupMode;
 import com.dtstack.flinkx.connector.kafka.serialization.RowDeserializationSchema;
+import com.dtstack.flinkx.connector.kafka.serialization.ticdc.TicdcDeserializationSchema;
 import com.dtstack.flinkx.connector.kafka.util.KafkaUtil;
 import com.dtstack.flinkx.converter.RawTypeConverter;
 import com.dtstack.flinkx.source.SourceFactory;
@@ -36,9 +37,8 @@ import org.apache.flink.table.data.RowData;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.kafka.common.requests.IsolationLevel;
 
-import java.io.Serializable;
+import java.util.Locale;
 import java.util.Properties;
 
 /**
@@ -70,17 +70,11 @@ public class KafkaSourceFactory extends SourceFactory {
         Properties props = new Properties();
         props.put("group.id", kafkaConf.getGroupId());
         props.putAll(kafkaConf.getConsumerSettings());
-        KafkaConsumer consumer =
-                new KafkaConsumer(
-                        Lists.newArrayList(kafkaConf.getTopic()),
-                        new RowDeserializationSchema(
-                                kafkaConf,
-                                new KafkaColumnConverter(kafkaConf),
-                                (Calculate & Serializable)
-                                        (subscriptionState, tp) ->
-                                                subscriptionState.partitionLag(
-                                                        tp, IsolationLevel.READ_UNCOMMITTED)),
-                        props);
+        DynamicKafkaDeserializationSchema deserializationSchema =
+                createKafkaDeserializationSchema(kafkaConf.getDeserialization());
+        KafkaConsumerWrapper consumer =
+                new KafkaConsumerWrapper(
+                        Lists.newArrayList(kafkaConf.getTopic()), deserializationSchema, props);
         switch (kafkaConf.getMode()) {
             case EARLIEST:
                 consumer.setStartFromEarliest();
@@ -107,5 +101,15 @@ public class KafkaSourceFactory extends SourceFactory {
     @Override
     public RawTypeConverter getRawTypeConverter() {
         return null;
+    }
+
+    public DynamicKafkaDeserializationSchema createKafkaDeserializationSchema(String type) {
+
+        switch (type.toLowerCase(Locale.ENGLISH)) {
+            case "ticdc":
+                return new TicdcDeserializationSchema(kafkaConf);
+            default:
+                return new RowDeserializationSchema(kafkaConf, new KafkaColumnConverter(kafkaConf));
+        }
     }
 }

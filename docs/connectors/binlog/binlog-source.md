@@ -154,6 +154,12 @@ Binlog为什么需要这些权限：
     - 默认值：无
       <br />
 
+- **transactionSize**
+    - 描述：DML数据缓存大小。
+    - 注意：
+    - 必选：否
+    - 默认值：1024
+
 - **pavingData**
     - 描述：是否将解析出的json数据拍平，具体见[六、数据结构](#六数据结构)
     - 必选：否
@@ -239,6 +245,20 @@ Binlog为什么需要这些权限：
     - 必选：否
     - 字段类型：boolean
     - 默认值：false
+      <br />
+
+- **queryTimeOut**
+    - 描述：通过TCP连接发送数据(在这里就是要执行的sql)后，等待响应的超时时间，单位毫秒
+    - 必选：否
+    - 字段类型：int
+    - 默认值：300000
+      <br />
+
+- **connectTimeOut**
+    - 描述：数据库驱动(mysql-connector-java)与mysql服务器建立TCP连接的超时时间，单位毫秒
+    - 必选：否
+    - 字段类型：int
+    - 默认值：60000
       <br />
 
 ###  2、SQL
@@ -378,6 +398,20 @@ Binlog为什么需要这些权限：
     - 必选：否
     - 字段类型：boolean
     - 默认值：false
+      <br />
+
+- **query-time-out**
+    - 描述：通过TCP连接发送数据(在这里就是要执行的sql)后，等待响应的超时时间，单位毫秒
+    - 必选：否
+    - 字段类型：int
+    - 默认值：300000
+      <br />
+
+- **connect-time-out**
+    - 描述：数据库驱动(mysql-connector-java)与mysql服务器建立TCP连接的超时时间，单位毫秒
+    - 必选：否
+    - 字段类型：int
+    - 默认值：60000
       <br />
 
 - **timestamp-format.standard**

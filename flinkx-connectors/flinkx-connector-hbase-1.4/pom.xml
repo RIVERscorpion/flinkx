@@ -32,8 +32,7 @@
 	<artifactId>flinkx-connector-hbase-1.4</artifactId>
 
 	<properties>
-		<maven.compiler.source>8</maven.compiler.source>
-		<maven.compiler.target>8</maven.compiler.target>
+		<connector.dir>hbase14</connector.dir>
 		<license.version>4.1</license.version>
 	</properties>
 
@@ -53,27 +52,6 @@
 					<groupId>org.slf4j</groupId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>com.dtstack.flinkx</groupId>
-			<artifactId>flinkx-core</artifactId>
-			<version>1.12-SNAPSHOT</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-auth</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
-			<version>1.12.2</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>2.7.5-1.8.1</version>
 		</dependency>
 	</dependencies>
 
@@ -134,195 +112,56 @@
 									</excludes>
 								</filter>
 							</filters>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.hadoop.security.authentication.util</pattern>
+									<shadedPattern>shade.hbase.org.apache.hadoop.security.authentication.util</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jboss.netty</pattern>
+									<shadedPattern>com.dtstack.flinkx.connector.hbase14.org.jboss.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>com.dtstack.flinkx.connector.hbase14.org.apache.http</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
 				<configuration>
-					<outputDirectory>${project.basedir}/target/hbase-2.2</outputDirectory>
+					<outputFile>
+						${basedir}/target/hbase-1.4/original-${project.artifactId}-${project.version}.jar
+					</outputFile>
 				</configuration>
 				<dependencies>
 					<dependency>
 						<groupId>org.apache.flink</groupId>
-						<artifactId>flink-connector-hbase-2.2_2.12</artifactId>
+						<artifactId>flink-connector-hbase-1.4_2.12</artifactId>
 						<version>1.12.2</version>
 					</dependency>
 				</dependencies>
 			</plugin>
 
 			<plugin>
-				<groupId>com.diffplug.spotless</groupId>
-				<artifactId>spotless-maven-plugin</artifactId>
-				<version>2.4.2</version>
-				<configuration>
-					<java>
-						<googleJavaFormat>
-							<version>1.7</version>
-							<style>AOSP</style>
-						</googleJavaFormat>
-
-						<!-- \# refers to the static imports -->
-						<importOrder>
-							<order>com.dtstack,org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
-						</importOrder>
-
-						<removeUnusedImports />
-					</java>
-				</configuration>
-				<executions>
-					<execution>
-						<id>spotless-check</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-
-
-			<!--			<plugin>-->
-<!--				<groupId>org.apache.maven.plugins</groupId>-->
-<!--				<artifactId>maven-enforcer-plugin</artifactId>-->
-<!--				<version>1.4.1</version>-->
-<!--				<executions>-->
-<!--					<execution>-->
-<!--						<id>default-cli</id>-->
-<!--						<phase>validate</phase>-->
-<!--						<goals>-->
-<!--							<goal>enforce</goal>-->
-<!--						</goals>-->
-<!--					</execution>-->
-<!--				</executions>-->
-<!--				<dependencies>-->
-<!--					<dependency>-->
-<!--						<groupId>org.codehaus.mojo</groupId>-->
-<!--						<artifactId>extra-enforcer-rules</artifactId>-->
-<!--						<version>1.0</version>-->
-<!--					</dependency>-->
-<!--				</dependencies>-->
-<!--				<configuration>-->
-<!--					<failFast>true</failFast>-->
-<!--					<rules>-->
-<!--						<requireMavenVersion>-->
-<!--							<version>3.0.4</version>-->
-<!--						</requireMavenVersion>-->
-<!--						<requireJavaVersion>-->
-<!--							<version>1.6.0</version>-->
-<!--						</requireJavaVersion>-->
-<!--						<banDuplicateClasses>-->
-<!--							<ignoreClasses>-->
-<!--								<ignoreClass>javax.*</ignoreClass>-->
-<!--								<ignoreClass>org.junit.*</ignoreClass>-->
-<!--								<ignoreClass>junit.*</ignoreClass>-->
-<!--								<ignoreClass>org.apache.xbean.recipe.*</ignoreClass>-->
-<!--								<ignoreClass>org.hamcrest.*</ignoreClass>-->
-<!--								<ignoreClass>org.slf4j.*</ignoreClass>-->
-<!--								<ignoreClass>org.antlr.runtime.*</ignoreClass>-->
-<!--								<ignoreClass>org.apache.commons.lang.*</ignoreClass>-->
-<!--								<ignoreClass>org.apache.commons.codec.*</ignoreClass>-->
-<!--								<ignoreClass>org.apache.commons.logging.*</ignoreClass>-->
-<!--								<ignoreClass>org.codehaus.plexus.component.builder.*</ignoreClass>-->
-<!--							</ignoreClasses>-->
-<!--							<findAllDuplicates>true</findAllDuplicates>-->
-<!--						</banDuplicateClasses>-->
-<!--						<bannedDependencies>-->
-<!--							<searchTransitive>true</searchTransitive>-->
-<!--							<excludes>-->
-<!--								<exclude>org.apache:libthrift</exclude>-->
-<!--								<exclude>org.jboss.netty:netty</exclude>-->
-<!--								<exclude>org.apache.thrift:libthrift:(,0.8.0),(0.8.0,)</exclude>-->
-<!--								<exclude>io.netty:netty:(,3.9.2.Final)</exclude>-->
-<!--								<exclude>com.fasterxml.jackson.core:*:(,2.6.0)</exclude>-->
-<!--								<exclude>com.google.guava:guava:(,15.0)</exclude>-->
-<!--							</excludes>-->
-<!--							<message>some dependency must exclude</message>-->
-<!--						</bannedDependencies>-->
-<!--					</rules>-->
-<!--				</configuration>-->
-<!--			</plugin>-->
-
-			<plugin>
-				<groupId>org.twdata.maven</groupId>
-				<artifactId>mojo-executor-maven-plugin</artifactId>
-				<version>2.3.0</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>execute-mojo</goal>
-						</goals>
-						<configuration>
-							<plugin>
-								<groupId>org.apache.maven.plugins</groupId>
-								<artifactId>maven-shade-plugin</artifactId>
-								<version>3.1.0</version>
-								<dependencies>
-									<dependency>
-										<groupId>org.apache.flink</groupId>
-										<artifactId>flink-connector-hbase-1.4_2.12</artifactId>
-										<version>1.12.2</version>
-									</dependency>
-								</dependencies>
-							</plugin>
-							<goal>shade</goal>
-							<configuration>
-								<outputDirectory>${project.basedir}/target/hbase-1.4</outputDirectory>
-								<createDependencyReducedPom>false</createDependencyReducedPom>
-								<artifactSet>
-									<excludes>
-										<exclude>org.slf4j:slf4j-api</exclude>
-										<exclude>log4j:log4j</exclude>
-										<exclude>ch.qos.logback:*</exclude>
-									</excludes>
-								</artifactSet>
-								<filters>
-									<filter>
-										<artifact>*:*</artifact>
-										<excludes>
-											<exclude>META-INF/*.SF</exclude>
-											<exclude>META-INF/*.DSA</exclude>
-											<exclude>META-INF/*.RSA</exclude>
-										</excludes>
-									</filter>
-								</filters>
-							</configuration>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
 						<id>copy-resources</id>
+						<!-- here the phase you need -->
 						<phase>package</phase>
 						<goals>
 							<goal>run</goal>
 						</goals>
 						<configuration>
 							<tasks>
-								<move file="${basedir}/target/hbase-1.4/original-${project.artifactId}-${project.version}.jar"
-									  tofile="${basedir}/target/hbase-1.4/${project.artifactId}-${project.version}.jar"/>
-								<copy todir="${basedir}/../../${dist.dir}/connector/hbase-1.4/"
-									  file="${basedir}/target/hbase-1.4/${project.artifactId}-${project.version}.jar"/>
-								<move file="${basedir}/../../${dist.dir}/connector/hbase-1.4/${project.artifactId}-${project.version}.jar"
-									  tofile="${basedir}/../../${dist.dir}/connector/hbase-1.4/${project.artifactId}-${git.branch}.jar"/>
+								<copy todir="${basedir}/../../${dist.dir}/connector/hbase14/"
+									  file="${basedir}/target/hbase-1.4/original-${project.artifactId}-${project.version}.jar"/>
+								<move file="${basedir}/../../${dist.dir}/connector/hbase14/original-${project.artifactId}-${project.version}.jar"
+									  tofile="${basedir}/../../${dist.dir}/connector/hbase14/${project.artifactId}-${git.branch}.jar"/>
 								<delete>
-									<fileset dir="${basedir}/../../${dist.dir}/connector/hbase-1.4/"
-											 includes="${project.artifactId}-*.jar"
-											 excludes="${project.artifactId}-${git.branch}.jar"/>
-								</delete>
-								<move file="${basedir}/target/hbase-2.2/original-${project.artifactId}-${project.version}.jar"
-									  tofile="${basedir}/target/hbase-2.2/${project.artifactId}-${project.version}.jar"/>
-								<copy todir="${basedir}/../../${dist.dir}/connector/hbase-2.2/"
-									  file="${basedir}/target/hbase-2.2/${project.artifactId}-${project.version}.jar"/>
-								<move file="${basedir}/../../${dist.dir}/connector/hbase-2.2/${project.artifactId}-${project.version}.jar"
-									  tofile="${basedir}/../../${dist.dir}/connector/hbase-2.2/${project.artifactId}-${git.branch}.jar"/>
-								<delete>
-									<fileset dir="${basedir}/../../${dist.dir}/connector/hbase-2.2/"
+									<!--suppress UnresolvedMavenProperty -->
+									<fileset dir="${basedir}/../../${dist.dir}/connector/hbase14/"
 											 includes="${project.artifactId}-*.jar"
 											 excludes="${project.artifactId}-${git.branch}.jar"/>
 								</delete>

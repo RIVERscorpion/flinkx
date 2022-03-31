@@ -45,11 +45,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class JdbcDynamicTableSink implements DynamicTableSink {
 
-    private final JdbcConf jdbcConf;
-    private final JdbcDialect jdbcDialect;
-    private final TableSchema tableSchema;
-    private final String dialectName;
-    private final JdbcOutputFormatBuilder builder;
+    protected final JdbcConf jdbcConf;
+    protected final JdbcDialect jdbcDialect;
+    protected final TableSchema tableSchema;
+    protected final String dialectName;
+    protected final JdbcOutputFormatBuilder builder;
 
     public JdbcDynamicTableSink(
             JdbcConf jdbcConf,
@@ -76,7 +76,7 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
     private void validatePrimaryKey(ChangelogMode requestedMode) {
         checkState(
                 ChangelogMode.insertOnly().equals(requestedMode)
-                        || !CollectionUtil.isNullOrEmpty(jdbcConf.getUpdateKey()),
+                        || !CollectionUtil.isNullOrEmpty(jdbcConf.getUniqueKey()),
                 "please declare primary key for sink table when query contains update/delete record.");
     }
 
@@ -98,7 +98,7 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
         }
         jdbcConf.setColumn(columnList);
         jdbcConf.setMode(
-                (CollectionUtil.isNullOrEmpty(jdbcConf.getUpdateKey()))
+                (CollectionUtil.isNullOrEmpty(jdbcConf.getUniqueKey()))
                         ? EWriteMode.INSERT.name()
                         : EWriteMode.UPDATE.name());
 

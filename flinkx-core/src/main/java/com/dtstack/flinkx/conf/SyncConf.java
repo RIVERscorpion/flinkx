@@ -17,6 +17,8 @@
  */
 package com.dtstack.flinkx.conf;
 
+import com.dtstack.flinkx.cdc.CdcConf;
+import com.dtstack.flinkx.mapping.NameMappingConf;
 import com.dtstack.flinkx.util.GsonUtil;
 
 import org.apache.flink.util.Preconditions;
@@ -44,7 +46,10 @@ public class SyncConf implements Serializable {
     /** FlinkX运行时服务器上的远程端插件包路径 */
     private String remotePluginPath;
 
-    private String restorePath;
+    private String savePointPath;
+
+    /** 本次任务所需插件jar包路径列表 */
+    private List<String> syncJarList;
 
     /**
      * 解析job字符串
@@ -126,8 +131,14 @@ public class SyncConf implements Serializable {
             }
 
             FieldConf fieldColumn;
-
-            if (fieldColumnByName == null && fieldColumnByIndex == null) {
+            boolean columnWithoutName =
+                    readerFieldList.stream().noneMatch(i -> StringUtils.isNotBlank(i.getName()));
+            // 如果column没有name 且restoreColumnIndex为-1 则不需要校验
+            if (fieldColumnByName == null
+                    && columnWithoutName
+                    && restore.getRestoreColumnIndex() == -1) {
+                return;
+            } else if (fieldColumnByName == null && fieldColumnByIndex == null) {
                 throw new IllegalArgumentException(
                         "Can not find restore column from json with column name:"
                                 + restore.getRestoreColumnName());
@@ -166,14 +177,6 @@ public class SyncConf implements Serializable {
         return job.getSetting().getSpeed();
     }
 
-    public DirtyConf getDirty() {
-        return job.getSetting().getDirty();
-    }
-
-    public ErrorLimitConf getErrorLimit() {
-        return job.getSetting().getErrorLimit();
-    }
-
     public LogConf getLog() {
         return job.getSetting().getLog();
     }
@@ -210,21 +213,37 @@ public class SyncConf implements Serializable {
         this.remotePluginPath = remotePluginPath;
     }
 
-    public String getRestorePath() {
-        return restorePath;
+    public String getSavePointPath() {
+        return savePointPath;
     }
 
-    public void setRestorePath(String restorePath) {
-        this.restorePath = restorePath;
+    public void setSavePointPath(String savePointPath) {
+        this.savePointPath = savePointPath;
     }
 
     public MetricPluginConf getMetricPluginConf() {
         return job.getSetting().getMetricPluginConf();
     }
 
+    public CdcConf getCdcConf() {
+        return job.getCdcConf();
+    }
+
+    public List<String> getSyncJarList() {
+        return syncJarList;
+    }
+
+    public void setSyncJarList(List<String> syncJarList) {
+        this.syncJarList = syncJarList;
+    }
+
+    public NameMappingConf getNameMappingConf() {
+        return job.getNameMapping();
+    }
+
     @Override
     public String toString() {
-        return "FlinkxConf{"
+        return "SyncConf{"
                 + "job="
                 + job
                 + ", pluginRoot='"
@@ -233,9 +252,11 @@ public class SyncConf implements Serializable {
                 + ", remotePluginPath='"
                 + remotePluginPath
                 + '\''
-                + ", restorePath='"
-                + restorePath
+                + ", savePointPath='"
+                + savePointPath
                 + '\''
+                + ", syncJarList="
+                + syncJarList
                 + '}';
     }
 
@@ -245,16 +266,18 @@ public class SyncConf implements Serializable {
      * @return
      */
     public String asString() {
-        return "FlinkxConf{"
-                + ", pluginRoot='"
+        return "SyncConf{"
+                + "pluginRoot='"
                 + pluginRoot
                 + '\''
                 + ", remotePluginPath='"
                 + remotePluginPath
                 + '\''
-                + ", restorePath='"
-                + restorePath
+                + ", savePointPath='"
+                + savePointPath
                 + '\''
+                + ", syncJarList="
+                + syncJarList
                 + '}';
     }
 }

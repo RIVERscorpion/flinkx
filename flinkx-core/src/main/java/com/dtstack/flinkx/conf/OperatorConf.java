@@ -20,10 +20,13 @@ package com.dtstack.flinkx.conf;
 import com.dtstack.flinkx.constants.ConfigConstant;
 import com.dtstack.flinkx.util.GsonUtil;
 
+import com.google.gson.internal.LinkedTreeMap;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,6 +50,8 @@ public class OperatorConf implements Serializable {
     /** fieldNameList */
     private List<String> fieldNameList;
 
+    private String semantic;
+
     public List<FieldConf> getFieldList() {
         if (fieldList == null) {
             List list = (List) parameter.get(ConfigConstant.KEY_COLUMN);
@@ -57,6 +62,14 @@ public class OperatorConf implements Serializable {
             }
         }
         return fieldList;
+    }
+
+    public String getSemantic() {
+        return semantic;
+    }
+
+    public void setSemantic(String semantic) {
+        this.semantic = semantic;
     }
 
     public List<String> getFieldNameList() {
@@ -163,6 +176,38 @@ public class OperatorConf implements Serializable {
                 String.format(
                         "can't %s from %s to long, internalMap = %s",
                         key, ret.getClass().getName(), GsonUtil.GSON.toJson(parameter)));
+    }
+
+    public Object getVal(String key) {
+        Object obj = parameter.get(key);
+        if (obj instanceof LinkedTreeMap) {
+            LinkedTreeMap treeMap = (LinkedTreeMap) obj;
+            Map<String, Object> map =
+                    new HashMap<>(Math.max((int) (treeMap.size() / .75f) + 1, 16));
+            map.putAll(treeMap);
+            return map;
+        }
+        return obj;
+    }
+
+    public Object getVal(String key, Object defaultValue) {
+        Object ret = getVal(key);
+        if (ret == null) {
+            return defaultValue;
+        }
+        return ret;
+    }
+
+    public String getStringVal(String key) {
+        return (String) parameter.get(key);
+    }
+
+    public String getStringVal(String key, String defaultValue) {
+        String ret = getStringVal(key);
+        if (ret == null || ret.trim().length() == 0) {
+            return defaultValue;
+        }
+        return ret;
     }
 
     public boolean getBooleanVal(String key, boolean defaultValue) {

@@ -18,18 +18,19 @@
 
 package com.dtstack.flinkx.connector.elasticsearch7.source;
 
-import com.dtstack.flinkx.connector.elasticsearch7.conf.ElasticsearchConf;
-import com.dtstack.flinkx.connector.elasticsearch7.utils.ElasticsearchRequestHelper;
-import com.dtstack.flinkx.connector.elasticsearch7.utils.ElasticsearchUtil;
+import com.dtstack.flinkx.connector.elasticsearch7.Elasticsearch7ClientFactory;
+import com.dtstack.flinkx.connector.elasticsearch7.Elasticsearch7RequestFactory;
+import com.dtstack.flinkx.connector.elasticsearch7.ElasticsearchConf;
 import com.dtstack.flinkx.source.format.BaseRichInputFormat;
 import com.dtstack.flinkx.throwable.ReadRecordException;
+import com.dtstack.flinkx.util.JsonUtil;
 
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.table.data.RowData;
 
 import com.google.common.collect.Lists;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.collections.MapUtils;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -56,19 +57,11 @@ import java.util.Map;
  * @create: 2021/06/27 17:25
  */
 public class ElasticsearchInputFormat extends BaseRichInputFormat {
-    /**
-     * Elasticsearch Configuration
-     */
-    private ElasticsearchConf elasticsearchConf;
-
-    /**
-     * Elasticsearch High Level Client
-     */
-    private transient RestHighLevelClient rhlClient;
-
-    protected String query;
-
     protected long keepAlive = 1;
+    /** Elasticsearch Configuration */
+    private ElasticsearchConf elasticsearchConf;
+    /** Elasticsearch High Level Client */
+    private transient RestHighLevelClient rhlClient;
 
     private Iterator<Map<String, Object>> iterator;
 
@@ -82,7 +75,7 @@ public class ElasticsearchInputFormat extends BaseRichInputFormat {
     protected InputSplit[] createInputSplitsInternal(int minNumSplits) throws Exception {
         InputSplit[] splits = new InputSplit[minNumSplits];
         for (int i = 0; i < minNumSplits; i++) {
-            splits[i] = new GenericInputSplit(i,minNumSplits);
+            splits[i] = new GenericInputSplit(i, minNumSplits);
         }
         return splits;
     }
@@ -90,30 +83,33 @@ public class ElasticsearchInputFormat extends BaseRichInputFormat {
     @Override
     protected void openInternal(InputSplit inputSplit) throws IOException {
         super.openInputFormat();
-        GenericInputSplit genericInputSplit = (GenericInputSplit)inputSplit;
+        GenericInputSplit genericInputSplit = (GenericInputSplit) inputSplit;
 
-        rhlClient = ElasticsearchUtil.createClient(elasticsearchConf);
+        rhlClient =
+                Elasticsearch7ClientFactory.createClient(
+                        elasticsearchConf, getRuntimeContext().getDistributedCache());
         scroll = new Scroll(TimeValue.timeValueMinutes(keepAlive));
 
         String[] fieldsNames = elasticsearchConf.getFieldNames();
         SearchSourceBuilder searchSourceBuilder =
-                ElasticsearchRequestHelper.createSourceBuilder(fieldsNames, null, null);
+                Elasticsearch7RequestFactory.createSourceBuilder(fieldsNames, null, null);
         searchSourceBuilder.size(elasticsearchConf.getBatchSize());
 
-        if(StringUtils.isNotEmpty(query)){
-            searchSourceBuilder.query(QueryBuilders.wrapperQuery(query));
+        if (MapUtils.isNotEmpty(elasticsearchConf.getQuery())) {
+            searchSourceBuilder.query(
+                    QueryBuilders.wrapperQuery(JsonUtil.toJson(elasticsearchConf.getQuery())));
         }
 
-        if(genericInputSplit.getTotalNumberOfSplits() > 1){
-            searchSourceBuilder.slice(new SliceBuilder(genericInputSplit.getSplitNumber(), genericInputSplit.getTotalNumberOfSplits()));
+        if (genericInputSplit.getTotalNumberOfSplits() > 1) {
+            searchSourceBuilder.slice(
+                    new SliceBuilder(
+                            genericInputSplit.getSplitNumber(),
+                            genericInputSplit.getTotalNumberOfSplits()));
         }
 
-        searchRequest = ElasticsearchRequestHelper.createSearchRequest(
-                elasticsearchConf.getIndex(),
-                scroll,
-                searchSourceBuilder
-        );
-
+        searchRequest =
+                Elasticsearch7RequestFactory.createSearchRequest(
+                        elasticsearchConf.getIndex(), scroll, searchSourceBuilder);
     }
 
     @Override
@@ -128,7 +124,7 @@ public class ElasticsearchInputFormat extends BaseRichInputFormat {
 
     @Override
     protected void closeInternal() throws IOException {
-        if(rhlClient != null) {
+        if (rhlClient != null) {
             clearScroll();
 
             rhlClient.close();
@@ -136,21 +132,22 @@ public class ElasticsearchInputFormat extends BaseRichInputFormat {
         }
     }
 
-    private void clearScroll() throws IOException{
-        if(scrollId == null){
+    private void clearScroll() throws IOException {
+        if (scrollId == null) {
             return;
         }
 
         ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
         clearScrollRequest.addScrollId(scrollId);
-        ClearScrollResponse clearScrollResponse = rhlClient.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
+        ClearScrollResponse clearScrollResponse =
+                rhlClient.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
         boolean succeeded = clearScrollResponse.isSucceeded();
         LOG.info("Clear scroll response:{}", succeeded);
     }
 
     @Override
     public boolean reachedEnd() throws IOException {
-        if(iterator != null && iterator.hasNext()) {
+        if (iterator != null && iterator.hasNext()) {
             return false;
         } else {
             return searchScroll();
@@ -159,21 +156,22 @@ public class ElasticsearchInputFormat extends BaseRichInputFormat {
 
     private boolean searchScroll() throws IOException {
         SearchHit[] searchHits;
-        if(scrollId == null){
+        if (scrollId == null) {
             SearchResponse searchResponse = rhlClient.search(searchRequest, RequestOptions.DEFAULT);
             scrollId = searchResponse.getScrollId();
             searchHits = searchResponse.getHits().getHits();
         } else {
             SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
             scrollRequest.scroll(scroll);
-            SearchResponse searchResponse = rhlClient.searchScroll(scrollRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse =
+                    rhlClient.searchScroll(scrollRequest, RequestOptions.DEFAULT);
             scrollId = searchResponse.getScrollId();
             searchHits = searchResponse.getHits().getHits();
         }
 
         List<Map<String, Object>> resultList = Lists.newArrayList();
-        for(SearchHit searchHit : searchHits) {
-            Map<String,Object> source = searchHit.getSourceAsMap();
+        for (SearchHit searchHit : searchHits) {
+            Map<String, Object> source = searchHit.getSourceAsMap();
             resultList.add(source);
         }
 

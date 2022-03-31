@@ -31,6 +31,7 @@ import org.apache.commons.lang3.time.DateUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -39,6 +40,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -355,6 +357,8 @@ public class StringUtil {
         try {
             switch (type) {
                 case TIMESTAMP:
+                case DATETIME:
+                case TIMESTAMPTZ:
                     return String.valueOf(Timestamp.valueOf(location).getTime());
                 case DATE:
                     return String.valueOf(
@@ -422,5 +426,24 @@ public class StringUtil {
             }
         }
         return keyword;
+    }
+
+    /**
+     * Serialize properties to string.
+     *
+     * @param props properties
+     * @return Serialized properties
+     * @throws IllegalArgumentException error
+     */
+    public static String propsToString(Properties props) throws IllegalArgumentException {
+        StringWriter sw = new StringWriter();
+        if (props != null) {
+            try {
+                props.store(sw, "");
+            } catch (IOException ex) {
+                throw new IllegalArgumentException("Cannot parse props to String.", ex);
+            }
+        }
+        return sw.toString();
     }
 }

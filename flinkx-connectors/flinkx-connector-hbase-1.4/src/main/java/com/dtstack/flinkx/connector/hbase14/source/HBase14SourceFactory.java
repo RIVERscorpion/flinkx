@@ -16,7 +16,7 @@
 package com.dtstack.flinkx.connector.hbase14.source;
 
 import com.dtstack.flinkx.conf.SyncConf;
-import com.dtstack.flinkx.connector.hbase14.HBaseColumnConverter;
+import com.dtstack.flinkx.connector.hbase.HBaseColumnConverter;
 import com.dtstack.flinkx.connector.hbase14.conf.HBaseConf;
 import com.dtstack.flinkx.connector.hbase14.converter.HBaseRawTypeConverter;
 import com.dtstack.flinkx.converter.AbstractRowConverter;
@@ -44,7 +44,6 @@ public class HBase14SourceFactory extends SourceFactory {
                         GsonUtil.GSON.toJson(syncConf.getReader().getParameter()), HBaseConf.class);
         super.initFlinkxCommonConf(config);
         config.setColumnMetaInfos(syncConf.getReader().getFieldList());
-        config.setTableName(syncConf.getReader().getTable().getTableName());
     }
 
     @Override
@@ -61,7 +60,7 @@ public class HBase14SourceFactory extends SourceFactory {
         builder.setColumnMetaInfos(config.getColumnMetaInfos());
         builder.setEncoding(config.getEncoding());
         builder.setHbaseConfig(config.getHbaseConfig());
-        builder.setTableName(config.getTableName());
+        builder.setTableName(config.getTable());
         builder.setEndRowKey(config.getEndRowkey());
         builder.setIsBinaryRowkey(config.isBinaryRowkey());
         builder.setScanCacheSize(config.getScanCacheSize());

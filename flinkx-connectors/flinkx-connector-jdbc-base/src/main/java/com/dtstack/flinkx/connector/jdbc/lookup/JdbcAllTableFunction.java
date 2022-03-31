@@ -31,10 +31,9 @@ public class JdbcAllTableFunction extends AbstractAllTableFunction {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(JdbcAllTableFunction.class);
-
+    protected final JdbcDialect jdbcDialect;
     private final JdbcConf jdbcConf;
     private final String query;
-    protected final JdbcDialect jdbcDialect;
 
     public JdbcAllTableFunction(
             JdbcConf jdbcConf,
@@ -81,7 +80,7 @@ public class JdbcAllTableFunction extends AbstractAllTableFunction {
      * @param connection
      * @throws SQLException
      */
-    private void queryAndFillData(
+    protected void queryAndFillData(
             Map<String, List<Map<String, Object>>> tmpCache, Connection connection)
             throws SQLException {
         // load data from table

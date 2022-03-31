@@ -18,6 +18,7 @@
 package com.dtstack.flinkx.conf;
 
 import java.io.Serializable;
+import java.util.StringJoiner;
 
 /**
  * Date: 2021/01/18 Company: www.dtstack.com
@@ -29,8 +30,6 @@ public class SettingConf implements Serializable {
 
     /** 速率及通道配置 */
     private SpeedConf speed = new SpeedConf();
-    /** 任务运行时数据读取写入的出错控制 */
-    private ErrorLimitConf errorLimit = new ErrorLimitConf();
     /** 任务指标插件信息 */
     private MetricPluginConf metricPluginConf = new MetricPluginConf();
     /** 断点续传配置 */
@@ -39,8 +38,6 @@ public class SettingConf implements Serializable {
     private RestartConf restart = new RestartConf();
     /** FlinkX日志记录配置 */
     private LogConf log = new LogConf();
-    /** 脏数据保存配置 */
-    private DirtyConf dirty = new DirtyConf();
 
     public void setMetricPluginConf(MetricPluginConf metricPluginConf) {
         this.metricPluginConf = metricPluginConf;
@@ -56,14 +53,6 @@ public class SettingConf implements Serializable {
 
     public void setSpeed(SpeedConf speed) {
         this.speed = speed;
-    }
-
-    public ErrorLimitConf getErrorLimit() {
-        return errorLimit;
-    }
-
-    public void setErrorLimit(ErrorLimitConf errorLimit) {
-        this.errorLimit = errorLimit;
     }
 
     public RestoreConf getRestore() {
@@ -90,31 +79,14 @@ public class SettingConf implements Serializable {
         this.log = log;
     }
 
-    public DirtyConf getDirty() {
-        return dirty;
-    }
-
-    public void setDirty(DirtyConf dirty) {
-        this.dirty = dirty;
-    }
-
     @Override
     public String toString() {
-        return "SettingConf{"
-                + "speed="
-                + speed
-                + ", errorLimit="
-                + errorLimit
-                + ", metricPluginConf="
-                + metricPluginConf
-                + ", restore="
-                + restore
-                + ", restart="
-                + restart
-                + ", log="
-                + log
-                + ", dirty="
-                + dirty
-                + '}';
+        return new StringJoiner(", ", SettingConf.class.getSimpleName() + "[", "]")
+                .add("speed=" + speed)
+                .add("metricPluginConf=" + metricPluginConf)
+                .add("restore=" + restore)
+                .add("restart=" + restart)
+                .add("log=" + log)
+                .toString();
     }
 }

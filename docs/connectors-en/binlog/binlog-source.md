@@ -137,10 +137,10 @@ Why does Binlog need these permissions:
 
 - **start**
     - Description: The starting position of the binlog file to be read
-    - Note: If it is empty, it will be consumed from the current position, and the priority of timestamp is higher than journalName+position
+    - Note: If it is empty, it will be consumed from the current position, and the priority of timestamp is higher than journal-name+position
     - Parameters:
     - timestamp: timestamp, the start point of collection is consumed from the specified timestamp;
-    - journalName: file name, the start point of collection is consumed from the beginning of the specified file;
+    - journal-name: file name, the start point of collection is consumed from the beginning of the specified file;
     - position: the specified position of the file, the start point of collection is consumed from the specified position of the specified file
     - Field type: map
     - Default value: none
@@ -462,7 +462,7 @@ UPDATE `tudou`.`kudu` SET `id` = 2, `user_id` = 2, `name` ='b' WHERE `id` = 1 AN
 
 -type: change type, INSERT, UPDATE, DELETE
 -opTime: the execution time of SQL in the database
--ts: Self-incrementing ID, not repeated, can be used for sorting, after decoding, it is the event time of FlinkX, the decoding rules are as follows:
+-ts: Self-incrementing ID, not repeated, can be used for sorting, after decoding, it is the event time of ChunJun, the decoding rules are as follows:
 ```java
 long id = Long.parseLong("6760525407742726144");
 long res = id >> 22;
@@ -481,4 +481,4 @@ System.out.println(sdf.format(res)); //2021-01-28 19:54:21
 
 
 ## VIII. Script Example
-See the `flinkx-examples` folder in the project.
+See the `chunjun-examples` folder in the project.
